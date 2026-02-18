@@ -2,7 +2,7 @@ import cron from 'node-cron';
 import { getConfig } from './config';
 import { getParser } from './parsers';
 import { insertJob, getUnanalyzedJobs, updateJobAnalysis, getUnnotifiedJobs } from './db/database';
-import { analyzeJob } from './ai/analyzer';
+import { analyzeJob, QuotaExhaustedError } from './ai/analyzer';
 import { notifyJob } from './bot/bot';
 import { createLogger } from './logger';
 
@@ -53,6 +53,7 @@ export async function runSearchCycle(): Promise<void> {
   // 2. Analyze unscored jobs with OpenAI
   const unanalyzed = getUnanalyzedJobs();
   log.info(`Analyzing ${unanalyzed.length} jobs...`);
+  let analyzed = 0;
 
   for (const job of unanalyzed) {
     try {
@@ -63,7 +64,13 @@ export async function runSearchCycle(): Promise<void> {
         config.keywords
       );
       updateJobAnalysis(job.id!, result.score, result.reasoning);
+      analyzed++;
     } catch (err) {
+      if (err instanceof QuotaExhaustedError) {
+        log.error(`OpenAI quota exhausted after analyzing ${analyzed}/${unanalyzed.length} jobs. ` +
+          'Skipping remaining analyses. Add credits at https://platform.openai.com/account/billing');
+        break;
+      }
       log.error(`Failed to analyze job ${job.id}`, err);
     }
   }

@@ -13,9 +13,41 @@ function getClient(): OpenAI {
   return client;
 }
 
+export class QuotaExhaustedError extends Error {
+  constructor() {
+    super('OpenAI quota exhausted. Add credits at https://platform.openai.com/account/billing');
+    this.name = 'QuotaExhaustedError';
+  }
+}
+
 export interface AnalysisResult {
   score: number;
   reasoning: string;
+}
+
+const MAX_RETRIES = 2;
+const RETRY_BASE_MS = 3000;
+
+async function callWithRetry(fn: () => Promise<AnalysisResult>): Promise<AnalysisResult> {
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      return await fn();
+    } catch (err: unknown) {
+      if (err instanceof OpenAI.APIError && err.status === 429) {
+        if (err.code === 'insufficient_quota') {
+          throw new QuotaExhaustedError();
+        }
+        if (attempt < MAX_RETRIES) {
+          const delay = RETRY_BASE_MS * Math.pow(2, attempt);
+          log.warn(`Rate limited, retrying in ${delay}ms (attempt ${attempt + 1}/${MAX_RETRIES})...`);
+          await new Promise(r => setTimeout(r, delay));
+          continue;
+        }
+      }
+      throw err;
+    }
+  }
+  throw new Error('Unreachable');
 }
 
 export async function analyzeJob(
@@ -41,7 +73,7 @@ Score guidelines:
 Company: ${company}
 Description: ${description}`;
 
-  try {
+  return callWithRetry(async () => {
     const response = await getClient().chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
@@ -58,10 +90,7 @@ Description: ${description}`;
     const parsed = JSON.parse(content) as AnalysisResult;
     log.info(`Analyzed "${title}" -> score: ${parsed.score}`);
     return parsed;
-  } catch (err) {
-    log.error(`Failed to analyze job "${title}"`, err);
-    return { score: 0, reasoning: 'Analysis failed due to an error' };
-  }
+  });
 }
 
 /**
