@@ -1,0 +1,17 @@
+{
+  "sites": [
+    { "name": "remoteok", "enabled": true },
+    { "name": "headhunter", "enabled": true },
+    { "name": "linkedin", "enabled": false }
+  ],
+  "keywords": ["Frontend", "Vue", "Nuxt", "TypeScript"],
+  "location": {
+    "country": "",
+    "city": "",
+    "remote": true
+  },
+  "search": {
+    "cronExpression": "*/30 * * * *",
+    "minMatchScore": 50
+  }
+}
