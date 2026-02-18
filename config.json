@@ -2,9 +2,9 @@
   "sites": [
     { "name": "remoteok", "enabled": true },
     { "name": "headhunter", "enabled": true },
-    { "name": "linkedin", "enabled": false }
+    { "name": "linkedin", "enabled": true }
   ],
-  "keywords": ["Frontend", "Vue", "Nuxt", "TypeScript"],
+  "keywords": ["Frontend", "Vue", "Nuxt", "TypeScript", "JavaScript", "HTML", "CSS"],
   "location": {
     "country": "",
     "city": "",
@@ -12,6 +12,6 @@
   },
   "search": {
     "cronExpression": "*/30 * * * *",
-    "minMatchScore": 50
+    "minMatchScore": 70
   }
 }
