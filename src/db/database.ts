@@ -109,6 +109,12 @@ export function isChatActive(chatId: number): boolean {
   return row?.active === 1;
 }
 
+export function getRecentJobs(limit: number = 10): JobRow[] {
+  return db.prepare(
+    'SELECT * FROM jobs ORDER BY created_at DESC LIMIT ?'
+  ).all(limit) as JobRow[];
+}
+
 export function closeDatabase(): void {
   if (db) db.close();
 }

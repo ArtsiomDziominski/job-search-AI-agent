@@ -6,6 +6,7 @@ import {
   isChatActive,
   getJobStats,
   getActiveChats,
+  getRecentJobs,
   markNotified,
   JobRow,
 } from '../db/database';
@@ -34,6 +35,7 @@ export function createBot(): Telegraf {
       '/start — Start receiving notifications\n' +
       '/stop — Stop notifications\n' +
       '/status — Show current status\n' +
+      '/jobs — Show last 10 found vacancies\n' +
       '/setstack <skills> — Update your skills (comma-separated)\n' +
       '/setlocation <country/city> — Set location filter\n' +
       '/search — Run search immediately'
@@ -99,6 +101,38 @@ export function createBot(): Telegraf {
       await ctx.reply(`Location set to: ${text}`);
     }
     log.info(`Location updated: ${text}`);
+  });
+
+  bot.command('jobs', async (ctx) => {
+    const jobs = getRecentJobs(10);
+    if (jobs.length === 0) {
+      await ctx.reply('No jobs found yet. Run /search to fetch vacancies.');
+      return;
+    }
+
+    for (const job of jobs) {
+      const scoreText = job.match_score !== null
+        ? `${job.match_score}%`
+        : 'not analyzed';
+
+      const message =
+        `💼 *${escapeMarkdown(job.title)}*\n` +
+        `🏢 ${escapeMarkdown(job.company)}\n` +
+        `📍 ${escapeMarkdown(job.location || 'Not specified')}\n` +
+        `📊 Match: ${scoreText}\n` +
+        `🔗 Source: ${escapeMarkdown(job.source)}`;
+
+      try {
+        await ctx.reply(message, {
+          parse_mode: 'Markdown',
+          ...Markup.inlineKeyboard([
+            Markup.button.url('Apply →', job.url || '#'),
+          ]),
+        });
+      } catch (err) {
+        log.error(`Failed to send job ${job.id}`, err);
+      }
+    }
   });
 
   bot.command('search', async (ctx) => {
