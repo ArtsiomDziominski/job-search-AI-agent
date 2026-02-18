@@ -6,7 +6,8 @@ import {
   isChatActive,
   getJobStats,
   getActiveChats,
-  getRecentJobs,
+  getJobsPage,
+  getTotalJobCount,
   markNotified,
   JobRow,
 } from '../db/database';
@@ -14,10 +15,12 @@ import { createLogger } from '../logger';
 
 const log = createLogger('Bot');
 
-let bot: Telegraf | null = null;
-let searchCallback: (() => Promise<void>) | null = null;
+import { SearchReport, formatReport } from '../scheduler';
 
-export function setSearchCallback(cb: () => Promise<void>): void {
+let bot: Telegraf | null = null;
+let searchCallback: (() => Promise<SearchReport>) | null = null;
+
+export function setSearchCallback(cb: () => Promise<SearchReport>): void {
   searchCallback = cb;
 }
 
@@ -104,35 +107,13 @@ export function createBot(): Telegraf {
   });
 
   bot.command('jobs', async (ctx) => {
-    const jobs = getRecentJobs(10);
-    if (jobs.length === 0) {
-      await ctx.reply('No jobs found yet. Run /search to fetch vacancies.');
-      return;
-    }
+    await sendJobsPage(ctx, 0);
+  });
 
-    for (const job of jobs) {
-      const scoreText = job.match_score !== null
-        ? `${job.match_score}%`
-        : 'not analyzed';
-
-      const message =
-        `💼 *${escapeMarkdown(job.title)}*\n` +
-        `🏢 ${escapeMarkdown(job.company)}\n` +
-        `📍 ${escapeMarkdown(job.location || 'Not specified')}\n` +
-        `📊 Match: ${scoreText}\n` +
-        `🔗 Source: ${escapeMarkdown(job.source)}`;
-
-      try {
-        await ctx.reply(message, {
-          parse_mode: 'Markdown',
-          ...Markup.inlineKeyboard([
-            Markup.button.url('Apply →', job.url || '#'),
-          ]),
-        });
-      } catch (err) {
-        log.error(`Failed to send job ${job.id}`, err);
-      }
-    }
+  bot.action(/^jobs_page:(\d+)$/, async (ctx) => {
+    const page = parseInt(ctx.match[1], 10);
+    await ctx.answerCbQuery();
+    await sendJobsPage(ctx, page);
   });
 
   bot.command('search', async (ctx) => {
@@ -140,10 +121,10 @@ export function createBot(): Telegraf {
       await ctx.reply('Search engine is not ready yet. Please wait.');
       return;
     }
-    await ctx.reply('Starting search... This may take a minute.');
+    await ctx.reply('🔍 Starting search... This may take a minute.');
     try {
-      await searchCallback();
-      await ctx.reply('Search complete! Check for new job notifications.');
+      const report = await searchCallback();
+      await ctx.reply(formatReport(report), { parse_mode: 'Markdown' });
     } catch (err) {
       log.error('Manual search failed', err);
       await ctx.reply('Search failed. Check logs for details.');
@@ -151,6 +132,57 @@ export function createBot(): Telegraf {
   });
 
   return bot;
+}
+
+const PAGE_SIZE = 10;
+
+async function sendJobsPage(ctx: { reply: Function }, page: number): Promise<void> {
+  const total = getTotalJobCount();
+  if (total === 0) {
+    await ctx.reply('No jobs found yet. Run /search to fetch vacancies.');
+    return;
+  }
+
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const safePage = Math.max(0, Math.min(page, totalPages - 1));
+  const jobs = getJobsPage(safePage, PAGE_SIZE);
+
+  const lines: string[] = [
+    `📋 *Vacancies* \\(page ${safePage + 1}/${totalPages}, total: ${total}\\)\n`,
+  ];
+
+  for (let i = 0; i < jobs.length; i++) {
+    const job = jobs[i];
+    const num = safePage * PAGE_SIZE + i + 1;
+    const scoreText = job.match_score !== null ? ` \\| ${job.match_score}%` : '';
+    const safeUrl = (job.url || '#').replace(/\)/g, '%29');
+    lines.push(
+      `*${num}\\.* ${escapeMarkdown(job.title)}\n` +
+      `   🏢 ${escapeMarkdown(job.company)} \\| 📍 ${escapeMarkdown(job.location || 'Remote')}${scoreText}\n` +
+      `   🔗 [Apply](${safeUrl})\n`
+    );
+  }
+
+  const buttons: ReturnType<typeof Markup.button.callback>[] = [];
+  if (safePage > 0) {
+    buttons.push(Markup.button.callback(`← Page ${safePage}`, `jobs_page:${safePage - 1}`));
+  }
+  if (safePage < totalPages - 1) {
+    buttons.push(Markup.button.callback(`Page ${safePage + 2} →`, `jobs_page:${safePage + 1}`));
+  }
+
+  const keyboard = buttons.length > 0 ? Markup.inlineKeyboard(buttons) : undefined;
+
+  try {
+    await ctx.reply(lines.join('\n'), {
+      parse_mode: 'MarkdownV2',
+      disable_web_page_preview: true,
+      ...keyboard,
+    });
+  } catch (err) {
+    log.error('Failed to send jobs page', err);
+    await ctx.reply(`Jobs page ${safePage + 1}/${totalPages} — failed to render. Check logs.`);
+  }
 }
 
 export async function startBot(): Promise<void> {

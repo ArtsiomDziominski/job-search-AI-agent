@@ -109,10 +109,15 @@ export function isChatActive(chatId: number): boolean {
   return row?.active === 1;
 }
 
-export function getRecentJobs(limit: number = 10): JobRow[] {
+export function getTotalJobCount(): number {
+  return (db.prepare('SELECT COUNT(*) as cnt FROM jobs').get() as { cnt: number }).cnt;
+}
+
+export function getJobsPage(page: number, pageSize: number = 10): JobRow[] {
+  const offset = page * pageSize;
   return db.prepare(
-    'SELECT * FROM jobs ORDER BY created_at DESC LIMIT ?'
-  ).all(limit) as JobRow[];
+    'SELECT * FROM jobs ORDER BY created_at DESC LIMIT ? OFFSET ?'
+  ).all(pageSize, offset) as JobRow[];
 }
 
 export function closeDatabase(): void {

@@ -1,6 +1,6 @@
 {
   "sites": [
-    { "name": "remoteok", "enabled": true },
+    { "name": "remoteok", "enabled": false },
     { "name": "headhunter", "enabled": true },
     { "name": "linkedin", "enabled": true }
   ],
