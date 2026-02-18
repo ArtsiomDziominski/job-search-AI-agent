@@ -1,4 +1,4 @@
-import { LocationConfig } from '../config';
+import { LocationConfig, SiteConfig } from '../config';
 
 export interface Job {
   externalId: string;
@@ -15,7 +15,7 @@ export interface Job {
 export abstract class BaseParser {
   abstract readonly source: string;
 
-  abstract search(keywords: string[], location: LocationConfig): Promise<Job[]>;
+  abstract search(keywords: string[], location: LocationConfig, siteConfig?: SiteConfig): Promise<Job[]>;
 
   protected matchesKeywords(text: string, keywords: string[]): boolean {
     const lower = text.toLowerCase();

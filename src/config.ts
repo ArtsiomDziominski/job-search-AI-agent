@@ -7,6 +7,8 @@ dotenv.config();
 export interface SiteConfig {
   name: string;
   enabled: boolean;
+  maxPages?: number;
+  pageDelayMs?: number;
 }
 
 export interface LocationConfig {

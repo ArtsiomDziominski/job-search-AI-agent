@@ -1,8 +1,8 @@
 {
   "sites": [
     { "name": "remoteok", "enabled": false },
-    { "name": "headhunter", "enabled": true },
-    { "name": "linkedin", "enabled": true }
+    { "name": "headhunter", "enabled": true, "maxPages": 5, "pageDelayMs": 1000 },
+    { "name": "linkedin", "enabled": true, "maxPages": 4, "pageDelayMs": 5000 }
   ],
   "keywords": ["Frontend", "Vue", "Nuxt", "TypeScript", "JavaScript", "HTML", "CSS"],
   "location": {

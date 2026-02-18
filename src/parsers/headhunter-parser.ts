@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { BaseParser, Job } from './base-parser';
-import { LocationConfig } from '../config';
+import { LocationConfig, SiteConfig } from '../config';
 import { createLogger } from '../logger';
 
 const log = createLogger('HeadHunter');
@@ -45,15 +45,22 @@ const AREA_CODES: Record<string, number> = {
   portugal: 93,
 };
 
-const MAX_PAGES = 5;
+const DEFAULT_MAX_PAGES = 5;
+const DEFAULT_DELAY_MS = 1000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 export class HeadHunterParser extends BaseParser {
   readonly source = 'headhunter';
   private readonly API_URL = 'https://api.hh.ru/vacancies';
 
-  async search(keywords: string[], location: LocationConfig): Promise<Job[]> {
+  async search(keywords: string[], location: LocationConfig, siteConfig?: SiteConfig): Promise<Job[]> {
+    const maxPages = siteConfig?.maxPages ?? DEFAULT_MAX_PAGES;
+    const delayMs = siteConfig?.pageDelayMs ?? DEFAULT_DELAY_MS;
     const query = keywords.join(' OR ');
-    log.info(`Searching with query: ${query}`);
+    log.info(`Searching with query: ${query} (maxPages: ${maxPages}, delay: ${delayMs}ms)`);
 
     const allJobs: Job[] = [];
 
@@ -76,8 +83,12 @@ export class HeadHunterParser extends BaseParser {
       let totalAvailable = 0;
       let totalPages = 1;
 
-      for (let page = 0; page < Math.min(totalPages, MAX_PAGES); page++) {
+      for (let page = 0; page < Math.min(totalPages, maxPages); page++) {
         const params = { ...baseParams, page };
+
+        if (page > 0 && delayMs > 0) {
+          await sleep(delayMs);
+        }
 
         const { data } = await axios.get<HHResponse>(this.API_URL, {
           params,
@@ -88,7 +99,7 @@ export class HeadHunterParser extends BaseParser {
         if (page === 0) {
           totalAvailable = data.found;
           totalPages = data.pages;
-          log.info(`Total available: ${totalAvailable}, pages: ${totalPages} (fetching up to ${MAX_PAGES})`);
+          log.info(`Total available: ${totalAvailable}, pages: ${totalPages} (fetching up to ${maxPages})`);
         }
 
         for (const v of data.items) {
@@ -111,7 +122,7 @@ export class HeadHunterParser extends BaseParser {
         if (data.items.length === 0) break;
       }
 
-      log.info(`Fetched ${allJobs.length} jobs total from ${Math.min(totalPages, MAX_PAGES)} pages`);
+      log.info(`Fetched ${allJobs.length} jobs total from ${Math.min(totalPages, maxPages)} pages`);
       return allJobs;
     } catch (err) {
       log.error('Failed to fetch vacancies', err);

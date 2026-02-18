@@ -69,7 +69,7 @@ export async function runSearchCycle(): Promise<SearchReport> {
 
     log.info(`Fetching from ${site.name}...`);
     try {
-      const jobs = await parser.search(config.keywords, config.location);
+      const jobs = await parser.search(config.keywords, config.location, site);
       siteReport.fetched = jobs.length;
 
       for (const job of jobs) {

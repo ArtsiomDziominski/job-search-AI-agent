@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { BaseParser, Job } from './base-parser';
-import { LocationConfig } from '../config';
+import { LocationConfig, SiteConfig } from '../config';
 import { createLogger } from '../logger';
 
 const log = createLogger('RemoteOK');
@@ -21,7 +21,7 @@ export class RemoteOKParser extends BaseParser {
   readonly source = 'remoteok';
   private readonly API_URL = 'https://remoteok.com/api';
 
-  async search(keywords: string[], location: LocationConfig): Promise<Job[]> {
+  async search(keywords: string[], location: LocationConfig, _siteConfig?: SiteConfig): Promise<Job[]> {
     log.info(`Searching with keywords: ${keywords.join(', ')}`);
 
     try {
