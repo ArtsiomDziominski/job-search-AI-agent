@@ -185,10 +185,13 @@ async function sendJobsPage(ctx: { reply: Function }, page: number): Promise<voi
     const num = safePage * PAGE_SIZE + i + 1;
     const scoreText = job.match_score !== null ? ` \\| ${job.match_score}%` : '';
     const safeUrl = (job.url || '#').replace(/\)/g, '%29');
+    const date = job.created_at
+      ? escapeMarkdown(job.created_at.replace('T', ' ').substring(0, 16))
+      : '';
     lines.push(
       `*${num}\\.* ${escapeMarkdown(job.title)}\n` +
       `   🏢 ${escapeMarkdown(job.company)} \\| 📍 ${escapeMarkdown(job.location || 'Remote')}${scoreText}\n` +
-      `   🔗 [Apply](${safeUrl})\n`
+      `   📅 ${date} \\| 🔗 [Apply](${safeUrl})\n`
     );
   }
 
