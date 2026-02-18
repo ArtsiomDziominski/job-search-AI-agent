@@ -109,15 +109,38 @@ export function isChatActive(chatId: number): boolean {
   return row?.active === 1;
 }
 
-export function getTotalJobCount(): number {
-  return (db.prepare('SELECT COUNT(*) as cnt FROM jobs').get() as { cnt: number }).cnt;
+export interface JobsFilter {
+  source?: string;
+  sortBy?: 'added' | 'posted';
 }
 
-export function getJobsPage(page: number, pageSize: number = 10): JobRow[] {
+export function getTotalJobCount(filter?: JobsFilter): number {
+  let sql = 'SELECT COUNT(*) as cnt FROM jobs';
+  const params: unknown[] = [];
+  if (filter?.source) {
+    sql += ' WHERE source = ?';
+    params.push(filter.source);
+  }
+  return (db.prepare(sql).get(...params) as { cnt: number }).cnt;
+}
+
+export function getJobsPage(page: number, pageSize: number = 10, filter?: JobsFilter): JobRow[] {
   const offset = page * pageSize;
-  return db.prepare(
-    'SELECT * FROM jobs ORDER BY created_at DESC LIMIT ? OFFSET ?'
-  ).all(pageSize, offset) as JobRow[];
+  let sql = 'SELECT * FROM jobs';
+  const params: unknown[] = [];
+  if (filter?.source) {
+    sql += ' WHERE source = ?';
+    params.push(filter.source);
+  }
+  const orderCol = filter?.sortBy === 'posted' ? 'posted_at' : 'created_at';
+  sql += ` ORDER BY ${orderCol} DESC LIMIT ? OFFSET ?`;
+  params.push(pageSize, offset);
+  return db.prepare(sql).all(...params) as JobRow[];
+}
+
+export function getDistinctSources(): string[] {
+  const rows = db.prepare('SELECT DISTINCT source FROM jobs ORDER BY source').all() as { source: string }[];
+  return rows.map(r => r.source);
 }
 
 export function clearAllJobs(): number {

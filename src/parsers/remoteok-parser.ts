@@ -30,8 +30,11 @@ export class RemoteOKParser extends BaseParser {
         timeout: 15000,
       });
 
-      // First element is metadata object, skip it
-      const listings = data.slice(1);
+      const listings = data.slice(1).sort((a, b) => {
+        const dateA = a.date ? new Date(a.date).getTime() : 0;
+        const dateB = b.date ? new Date(b.date).getTime() : 0;
+        return dateB - dateA;
+      });
 
       const filtered = listings.filter(job => {
         const searchable = [

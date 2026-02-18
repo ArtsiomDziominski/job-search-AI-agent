@@ -38,6 +38,7 @@ export class LinkedInParser extends BaseParser {
       const params: Record<string, string | number> = {
         keywords: query,
         start,
+        sortBy: 'DD',
         f_TPR: 'r604800',
       };
 

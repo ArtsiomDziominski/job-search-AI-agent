@@ -69,6 +69,7 @@ export class HeadHunterParser extends BaseParser {
         text: query,
         per_page: 100,
         search_field: 'name',
+        order_by: 'publication_time',
       };
 
       const areaKey = (location.city || location.country || '').toLowerCase();
