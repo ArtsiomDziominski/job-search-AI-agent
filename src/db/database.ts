@@ -120,6 +120,12 @@ export function getJobsPage(page: number, pageSize: number = 10): JobRow[] {
   ).all(pageSize, offset) as JobRow[];
 }
 
+export function clearAllJobs(): number {
+  const result = db.prepare('DELETE FROM jobs').run();
+  log.info(`Cleared all jobs: ${result.changes} rows deleted`);
+  return result.changes;
+}
+
 export function closeDatabase(): void {
   if (db) db.close();
 }

@@ -8,6 +8,7 @@ import {
   getActiveChats,
   getJobsPage,
   getTotalJobCount,
+  clearAllJobs,
   markNotified,
   JobRow,
 } from '../db/database';
@@ -38,10 +39,11 @@ export function createBot(): Telegraf {
       '/start — Start receiving notifications\n' +
       '/stop — Stop notifications\n' +
       '/status — Show current status\n' +
-      '/jobs — Show last 10 found vacancies\n' +
+      '/jobs — Browse vacancies (with pagination)\n' +
+      '/search — Run search immediately\n' +
       '/setstack <skills> — Update your skills (comma-separated)\n' +
       '/setlocation <country/city> — Set location filter\n' +
-      '/search — Run search immediately'
+      '/clear — Delete all vacancies from database'
     );
   });
 
@@ -114,6 +116,33 @@ export function createBot(): Telegraf {
     const page = parseInt(ctx.match[1], 10);
     await ctx.answerCbQuery();
     await sendJobsPage(ctx, page);
+  });
+
+  bot.command('clear', async (ctx) => {
+    const total = getTotalJobCount();
+    if (total === 0) {
+      await ctx.reply('Database is already empty.');
+      return;
+    }
+    await ctx.reply(
+      `⚠️ Are you sure you want to delete all ${total} vacancies from the database?\n\nThis action cannot be undone.`,
+      Markup.inlineKeyboard([
+        Markup.button.callback('✅ Yes, delete all', 'clear_confirm'),
+        Markup.button.callback('❌ No, cancel', 'clear_cancel'),
+      ])
+    );
+  });
+
+  bot.action('clear_confirm', async (ctx) => {
+    await ctx.answerCbQuery();
+    const deleted = clearAllJobs();
+    log.info(`User cleared database: ${deleted} jobs deleted`);
+    await ctx.editMessageText(`🗑 Done. Deleted ${deleted} vacancies from the database.`);
+  });
+
+  bot.action('clear_cancel', async (ctx) => {
+    await ctx.answerCbQuery();
+    await ctx.editMessageText('Cancelled. Database was not changed.');
   });
 
   bot.command('search', async (ctx) => {
